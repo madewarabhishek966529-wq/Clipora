@@ -1,0 +1,42 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Clipora runtime data & outputs
+data/config.json
+data/jobs_journal.json
+data/live_monitor.json
+data/cookies.txt
+data/logo.png
+data/fonts/*
+!data/fonts/.gitkeep
+data/cache/*
+!data/cache/.gitkeep
+uploads/*
+!uploads/.gitkeep
+output/*
+!output/.gitkeep
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node & Frontend
+node_modules/
+dashboard/dist/
+dashboard/node_modules/
+dashboard/.vite/
+
+# System & OS
+.DS_Store
+Thumbs.db
+*.log
+.tmp-*
