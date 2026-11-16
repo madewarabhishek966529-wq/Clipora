@@ -38,6 +38,9 @@ async def run_pipeline_subprocess(job_id: str) -> int:
     )
 
     with open(log_path, "a", encoding="utf-8") as log_file:
+        log_file.write(f"=== Clipora Pipeline Worker Started for Job #{job_id} ===\n")
+        log_file.flush()
+
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=log_file,
@@ -70,6 +73,14 @@ async def run_pipeline_subprocess(job_id: str) -> int:
             return returncode
 
         err_msg = f"Pipeline process exited with code {returncode}."
+        try:
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as lf:
+                error_lines = [l.strip() for l in lf.readlines() if "ERROR" in l or "Error:" in l]
+                if error_lines:
+                    err_msg = error_lines[-1]
+        except Exception:
+            pass
+
         journal.update_job(job_id, status=JobStatus.FAILED.value, error=err_msg)
         update_job_metadata(
             job_id,

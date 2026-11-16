@@ -61,8 +61,9 @@ class JobQueueManager:
             try:
                 await run_pipeline_subprocess(job_id)
             except Exception as e:
-                # Subprocess runner already handles logging & status update
-                pass
+                import logging
+                logging.getLogger("clipora.queue").exception(f"Error executing job {job_id}: {e}")
+                update_job_metadata(job_id, {"status": JobStatus.FAILED, "error_message": str(e)})
 
     async def submit_job(
         self,

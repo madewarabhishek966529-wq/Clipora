@@ -7,13 +7,19 @@ from typing import List, Tuple
 from clipora.core.errors import JobExecutionError
 
 def find_executable(name: str) -> str:
-    """Locate binary on PATH or via common environment variables."""
+    """Locate binary on PATH or via common environment variables or imageio_ffmpeg."""
     custom = os.getenv(f"{name.upper()}_PATH")
     if custom and os.path.isfile(custom):
         return custom
     found = shutil.which(name)
     if found:
         return found
+    if name == "ffmpeg":
+        try:
+            import imageio_ffmpeg
+            return imageio_ffmpeg.get_ffmpeg_exe()
+        except (ImportError, Exception):
+            pass
     return name
 
 def run_ffmpeg(args: List[str], timeout: float | None = 600.0) -> subprocess.CompletedProcess[str]:

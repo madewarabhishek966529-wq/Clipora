@@ -44,10 +44,17 @@ def run_job_pipeline(job_id: str) -> None:
     # STAGE 1: INGESTION / DOWNLOAD
     # =========================================================================
     if not checkpoint.is_phase_completed("download"):
-        update_job_metadata(job_id, {"current_phase": "download", "progress_percent": 10.0})
+        update_job_metadata(job_id, {"current_phase": "download", "progress_percent": 5.0})
         if metadata.source_url:
             logger.info(f"Downloading source video from: {metadata.source_url}")
-            downloaded_path, info = download_video(metadata.source_url, job_dir, "source.mp4")
+            def on_dl_progress(pct: float):
+                update_job_metadata(job_id, {"progress_percent": round(pct, 1)})
+            downloaded_path, info = download_video(
+                metadata.source_url,
+                job_dir,
+                "source.mp4",
+                progress_callback=on_dl_progress,
+            )
             source_video_path = downloaded_path
             metadata.video_title = info.get("title", "Video Source")
             metadata.video_duration = float(info.get("duration", 0.0))
