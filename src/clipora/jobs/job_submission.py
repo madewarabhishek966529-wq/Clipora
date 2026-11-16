@@ -63,7 +63,9 @@ class JobQueueManager:
             except Exception as e:
                 import logging
                 logging.getLogger("clipora.queue").exception(f"Error executing job {job_id}: {e}")
-                update_job_metadata(job_id, {"status": JobStatus.FAILED, "error_message": str(e)})
+                existing_meta = read_job_metadata(job_id)
+                if not (existing_meta and existing_meta.error_message and existing_meta.error_message != str(e)):
+                    update_job_metadata(job_id, {"status": JobStatus.FAILED, "error_message": str(e)})
 
     async def submit_job(
         self,

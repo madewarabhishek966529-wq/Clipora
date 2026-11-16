@@ -91,6 +91,7 @@ def download_video(
                         return candidate, info
         except Exception as e:
             last_error = e
+            print(f"[DOWNLOAD] Client fallback '{client_list}' encountered error: {e}. Switching to next client...", flush=True)
             continue
 
     raise JobExecutionError(

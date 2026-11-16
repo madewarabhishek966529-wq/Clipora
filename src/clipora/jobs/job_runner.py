@@ -41,11 +41,22 @@ async def run_pipeline_subprocess(job_id: str) -> int:
         log_file.write(f"=== Clipora Pipeline Worker Started for Job #{job_id} ===\n")
         log_file.flush()
 
+        src_dir = str(Path(__file__).resolve().parent.parent.parent)
+        root_dir = str(Path(__file__).resolve().parent.parent.parent.parent)
+        existing_pp = os.environ.get("PYTHONPATH", "")
+        pythonpath = f"{src_dir}{os.pathsep}{root_dir}" + (f"{os.pathsep}{existing_pp}" if existing_pp else "")
+
+        env = {
+            **os.environ,
+            "PYTHONUNBUFFERED": "1",
+            "PYTHONPATH": pythonpath,
+        }
+
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=log_file,
             stderr=asyncio.subprocess.STDOUT,
-            env={**os.environ, "PYTHONUNBUFFERED": "1"},
+            env=env,
         )
 
         journal.update_job(job_id, pid=proc.pid)
@@ -75,7 +86,11 @@ async def run_pipeline_subprocess(job_id: str) -> int:
         err_msg = f"Pipeline process exited with code {returncode}."
         try:
             with open(log_path, "r", encoding="utf-8", errors="ignore") as lf:
-                error_lines = [l.strip() for l in lf.readlines() if "ERROR" in l or "Error:" in l]
+                error_lines = [
+                    l.strip()
+                    for l in lf.readlines()
+                    if any(k in l for k in ("ERROR", "Error:", "Exception:", "Traceback", "Failed"))
+                ]
                 if error_lines:
                     err_msg = error_lines[-1]
         except Exception:

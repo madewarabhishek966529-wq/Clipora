@@ -5,6 +5,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import psutil
 from clipora.core.clip_schema import JobStatus
 from clipora.storage.atomic import atomic_write_json, read_json_safe
 from clipora.jobs.job_artifacts import read_job_metadata, update_job_metadata
@@ -101,6 +102,10 @@ class JobJournal:
                     JobStatus.REFRAMING.value,
                     JobStatus.POSTPROCESSING.value,
                 ):
+                    pid = entry.get("pid")
+                    if pid and psutil.pid_exists(pid):
+                        # Process is still actively running in background
+                        continue
                     # Active job was interrupted by server crash/shutdown
                     entry["status"] = JobStatus.FAILED.value
                     entry["error"] = "Interrupted by host restart or server crash."
