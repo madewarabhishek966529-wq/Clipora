@@ -65,7 +65,7 @@ class ConfigStore:
 
     def __init__(self, config_path: Path | str = DEFAULT_CONFIG_PATH):
         self.config_path = Path(config_path)
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._cached_config: CliporaConfig | None = None
         self._load_initial()
 

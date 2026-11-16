@@ -1,0 +1,21 @@
+services:
+  clipora:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clipora_engine
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - MAX_CONCURRENT_JOBS=2
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
+      - ZERNIO_API_KEY=${ZERNIO_API_KEY:-}
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./uploads:/app/uploads
