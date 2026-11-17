@@ -88,25 +88,7 @@ def transcribe_audio(video_path):
     whisper_model = _select_whisper_model()
     logger.info("🎙️  Transcribing audio [%s] from: %s (%s mode)", whisper_model, video_path, device.upper())
     model = _get_cached_whisper_model(whisper_model, device, compute_type)
-    # Decode via FFmpeg s16le PCM to avoid PyAV 19.x 'metadata_errors' compatibility bug
-    whisper_audio = video_path
-    try:
-        from clippyme.media.ffmpeg_exec import find_executable
-        import subprocess
-        import numpy as np
-        ff_bin = find_executable("ffmpeg") or "ffmpeg"
-        ff_cmd = [
-            ff_bin, "-v", "error", "-nostdin",
-            "-i", str(video_path),
-            "-f", "s16le", "-acodec", "pcm_s16le",
-            "-ar", "16000", "-ac", "1", "-"
-        ]
-        raw_pcm = subprocess.run(ff_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout
-        whisper_audio = np.frombuffer(raw_pcm, np.int16).flatten().astype(np.float32) / 32768.0
-    except Exception as pcm_err:
-        logger.debug(f"Direct PCM decode bypassed ({pcm_err}), using path directly")
-
-    segments, info = model.transcribe(whisper_audio, word_timestamps=True)
+    segments, info = model.transcribe(video_path, word_timestamps=True)
     segments = list(segments)
 
     transcript = {

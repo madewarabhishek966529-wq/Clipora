@@ -319,26 +319,8 @@ def transcribe_video(video_path):
         _whisper_lang = _lang_override if _lang_override and _lang_override != "multi" else None
         if _whisper_lang:
             print(f"   🌐 Whisper language override: {_whisper_lang}")
-
-        # Decode via FFmpeg s16le PCM to avoid PyAV 19.x 'metadata_errors' compatibility bug
-        whisper_audio = asr_input
-        try:
-            from clippyme.media.ffmpeg_exec import find_executable
-            import subprocess
-            ff_bin = find_executable("ffmpeg") or "ffmpeg"
-            ff_cmd = [
-                ff_bin, "-v", "error", "-nostdin",
-                "-i", str(asr_input),
-                "-f", "s16le", "-acodec", "pcm_s16le",
-                "-ar", "16000", "-ac", "1", "-"
-            ]
-            raw_pcm = subprocess.run(ff_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout
-            whisper_audio = np.frombuffer(raw_pcm, np.int16).flatten().astype(np.float32) / 32768.0
-        except Exception as pcm_err:
-            logging.getLogger("clippyme").debug(f"Direct PCM decode bypassed ({pcm_err}), using path directly")
-
         segments, info = model.transcribe(
-            whisper_audio, word_timestamps=True, language=_whisper_lang
+            asr_input, word_timestamps=True, language=_whisper_lang
         )
         segments = list(segments)
 
