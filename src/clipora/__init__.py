@@ -1,3 +1,18 @@
-"""Clipora: Autonomous AI video clipping, reframing, and publishing engine."""
+"""Clipora / ClippyMe root package."""
 
-__version__ = "0.1.0"
+import sys
+import clippyme
+
+__version__ = "1.0.0"
+
+# Re-export clippyme packages for seamless dual compatibility
+api = clippyme.api
+jobs = clippyme.jobs
+pipeline = clippyme.pipeline
+editing = clippyme.editing
+core = clippyme.core
+media = clippyme.media
+monitoring = clippyme.monitoring
+publishing = clippyme.publishing
+storage = clippyme.storage
+

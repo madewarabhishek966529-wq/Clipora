@@ -1,0 +1,21 @@
+Metadata-Version: 2.4
+Name: clippyme
+Version: 0.0.0
+Requires-Python: >=3.11
+Provides-Extra: host-tests
+Requires-Dist: numpy==2.4.6; extra == "host-tests"
+Requires-Dist: pydantic==2.13.4; extra == "host-tests"
+Requires-Dist: fastapi==0.135.3; extra == "host-tests"
+Requires-Dist: starlette>=1.0.1; extra == "host-tests"
+Requires-Dist: uvicorn==0.42.0; extra == "host-tests"
+Requires-Dist: click<9,>=8.3.3; extra == "host-tests"
+Requires-Dist: python-multipart==0.0.31; extra == "host-tests"
+Requires-Dist: yt-dlp<2027,>=2026.6.9; extra == "host-tests"
+Requires-Dist: google-genai<2.0.0,>=1.70.0; extra == "host-tests"
+Requires-Dist: python-dotenv==1.2.2; extra == "host-tests"
+Requires-Dist: Pillow<13,>=12.3.0; extra == "host-tests"
+Requires-Dist: requests<3,>=2.32; extra == "host-tests"
+Requires-Dist: json-repair>=0.30; extra == "host-tests"
+Requires-Dist: psutil==7.0.0; extra == "host-tests"
+Requires-Dist: tqdm==4.67.3; extra == "host-tests"
+Requires-Dist: tzdata>=2026.1; sys_platform == "win32" and extra == "host-tests"

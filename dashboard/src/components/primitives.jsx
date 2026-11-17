@@ -1,126 +1,92 @@
-import React from 'react';
 
-export function Button({
-  children,
-  variant = 'primary',
-  size = 'md',
-  className = '',
-  disabled = false,
-  loading = false,
-  onClick,
-  type = 'button',
-  ...props
-}) {
-  const base = "inline-flex items-center justify-center font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
-  
-  const variants = {
-    primary: "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 focus:ring-indigo-500",
-    secondary: "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 focus:ring-slate-500",
-    danger: "bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/30 focus:ring-rose-500",
-    ghost: "bg-transparent hover:bg-slate-800/60 text-slate-300 hover:text-white",
-  };
+import { useId, useRef } from 'react';
+import { Icon, Social } from './icon';
 
-  const sizes = {
-    sm: "px-3 py-1.5 text-xs",
-    md: "px-4 py-2 text-sm",
-    lg: "px-6 py-3 text-base font-semibold",
-  };
+export { Icon, Social };
 
+export function Btn({ variant = 'secondary', size, block, icon, iconRight, children, loading = false, disabled, type = 'button', className = '', ...props }) {
+  const classes = ['btn', `btn-${variant}`, size && `btn-${size}`, block && 'btn-block', className].filter(Boolean).join(' ');
   return (
-    <button
-      type={type}
-      disabled={disabled || loading}
-      onClick={onClick}
-      className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
-      {...props}
-    >
-      {loading && (
-        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-current" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-      )}
-      {children}
+    <button {...props} type={type} className={classes} disabled={disabled || loading} aria-busy={loading || undefined}>
+      {(loading || icon) && <Icon n={loading ? 'loader' : icon} />}
+      <span>{children}</span>
+      {!loading && iconRight && <Icon n={iconRight} />}
     </button>
   );
 }
 
-export function Card({ children, className = '', ...props }) {
+export function Badge({ tone = 'out', icon, children, className = '', ...props }) {
+  return <span {...props} className={`badge badge-${tone}${className ? ` ${className}` : ''}`}>{icon && <Icon n={icon} />}{children}</span>;
+}
+
+export function Switch({ on, onChange, disabled, label = 'Toggle option', ...props }) {
   return (
-    <div className={`bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl ${className}`} {...props}>
-      {children}
-    </div>
+    <button {...props} type="button" role="switch" aria-checked={!!on} aria-label={label} disabled={disabled}
+      className={`sw${on ? ' on' : ''}`} onClick={(event) => { event.stopPropagation(); onChange?.(!on); }}>
+      <i aria-hidden="true" />
+    </button>
   );
 }
 
-export function Badge({ children, variant = 'indigo', className = '' }) {
-  const variants = {
-    indigo: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/30",
-    green: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30",
-    yellow: "bg-amber-500/10 text-amber-400 border border-amber-500/30",
-    red: "bg-rose-500/10 text-rose-400 border border-rose-500/30",
-    slate: "bg-slate-800 text-slate-300 border border-slate-700",
+export function Segmented({ options, value, onChange, full, blue, label = 'Choose an option' }) {
+  const refs = useRef([]);
+  const move = (event, index) => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    event.preventDefault();
+    const direction = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1;
+    const next = (index + direction + options.length) % options.length;
+    onChange(options[next].id);
+    refs.current[next]?.focus();
   };
-
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${variants[variant]} ${className}`}>
-      {children}
-    </span>
-  );
-}
-
-export function Input({ label, error, className = '', ...props }) {
-  return (
-    <div className="w-full">
-      {label && <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">{label}</label>}
-      <input
-        className={`w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all ${className}`}
-        {...props}
-      />
-      {error && <p className="text-xs text-rose-400 mt-1">{error}</p>}
+    <div className={`seg${full ? ' full' : ''}${blue ? ' blue' : ''}`} role="group" aria-label={label}>
+      {options.map((option, index) => (
+        <button key={option.id} ref={(node) => { refs.current[index] = node; }} type="button"
+          aria-pressed={value === option.id}
+          className={value === option.id ? 'on' : ''} onClick={() => onChange(option.id)} onKeyDown={(event) => move(event, index)}>
+          {option.icon && <Icon n={option.icon} />}{option.label}
+        </button>
+      ))}
     </div>
   );
 }
 
-export function Select({ label, options = [], className = '', ...props }) {
+export function Stepper({ value, set, min = 1, max = 12, label = 'Value' }) {
   return (
-    <div className="w-full">
-      {label && <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">{label}</label>}
-      <select
-        className={`w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all ${className}`}
-        {...props}
-      >
-        {options.map((opt) => (
-          <option key={opt.value ?? opt.id} value={opt.value ?? opt.id}>
-            {opt.label ?? opt.name}
-          </option>
-        ))}
-      </select>
+    <div className="stepper" role="group" aria-label={label}>
+      <button type="button" disabled={value <= min} onClick={() => set(Math.max(min, value - 1))} aria-label={`Decrease ${label}`}>–</button>
+      <output aria-live="polite">{value}</output>
+      <button type="button" disabled={value >= max} onClick={() => set(Math.min(max, value + 1))} aria-label={`Increase ${label}`}>+</button>
     </div>
   );
 }
 
-export function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-2xl' }) {
-  if (!isOpen) return null;
-
+export function Panel({ title, sub, icon, headRight, pad = true, children, className, style, as: Tag = 'section', headingAs: Heading = 'h3', headingLevel = 2 }) {
+  const titleId = useId();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className={`bg-slate-900 border border-slate-800 rounded-2xl w-full ${maxWidth} shadow-2xl overflow-hidden flex flex-col max-h-[90vh]`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-          <h3 className="text-lg font-bold text-white">{title}</h3>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
+    <Tag className={`panel${className ? ` ${className}` : ''}`} style={style} aria-labelledby={title ? titleId : undefined}>
+      {title && (
+        <div className="panel-head">
+          {icon && <div className="ico" aria-hidden="true"><Icon n={icon} /></div>}
+          <div><Heading id={titleId} aria-level={headingLevel}>{title}</Heading>{sub && <div className="sub">{sub}</div>}</div>
+          {headRight && <div className="right">{headRight}</div>}
         </div>
-        <div className="p-6 overflow-y-auto">
-          {children}
-        </div>
-      </div>
-    </div>
+      )}
+      <div className={pad ? 'panel-pad' : ''}>{children}</div>
+    </Tag>
+  );
+}
+
+export const PLATFORMS = [
+  { id: 'tiktok', icon: 'tiktok', label: 'TikTok' },
+  { id: 'ig', icon: 'instagram', label: 'Reels' },
+  { id: 'yt', icon: 'youtube', label: 'Shorts' },
+];
+
+export function PlatPill({ id, icon, label, on, onClick }) {
+  return (
+    <button type="button" className={`plat${on ? ` on ${id}` : ''}`} aria-pressed={!!on} onClick={onClick}>
+      <Social n={icon} color={on ? 'white' : '7E7E8F'} />{label}
+    </button>
   );
 }

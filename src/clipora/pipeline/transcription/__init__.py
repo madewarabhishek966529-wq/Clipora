@@ -1,10 +1,14 @@
 """Unified transcription engine with multi-provider failover and disk caching."""
 
+import io
 import logging
+import subprocess
 from pathlib import Path
 from typing import Optional
+import numpy as np
 from clipora.core.errors import TranscriptionError
 from clipora.storage.config_store import get_config_store
+from clipora.media.ffmpeg_exec import find_executable
 from clipora.pipeline.hardware import pick_whisper_model
 from clipora.pipeline.transcription.diarization import NormalizedTranscript, TranscriptWord
 from clipora.pipeline.transcription.transcribe_cache import (
@@ -15,6 +19,23 @@ from clipora.pipeline.transcription.deepgram_transcribe import transcribe_deepgr
 from clipora.pipeline.transcription.elevenlabs_transcribe import transcribe_elevenlabs
 
 logger = logging.getLogger("clipora.transcription")
+
+def load_audio_numpy(audio_path: Path | str, sr: int = 16000) -> np.ndarray:
+    """Load and resample audio into a 1D float32 numpy array using bundled static FFmpeg."""
+    ffmpeg_bin = find_executable("ffmpeg")
+    cmd = [
+        ffmpeg_bin,
+        "-v", "error",
+        "-nostdin",
+        "-i", str(audio_path),
+        "-f", "s16le",
+        "-acodec", "pcm_s16le",
+        "-ar", str(sr),
+        "-ac", "1",
+        "-",
+    ]
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+    return np.frombuffer(proc.stdout, np.int16).flatten().astype(np.float32) / 32768.0
 
 def transcribe_local_whisper(audio_path: Path | str) -> NormalizedTranscript:
     """Run local faster-whisper using hardware-adaptive model settings."""
@@ -29,7 +50,13 @@ def transcribe_local_whisper(audio_path: Path | str) -> NormalizedTranscript:
     logger.info(f"Loading local Whisper model: {model_size} ({device}, {compute_type})")
 
     model = WhisperModel(model_size, device=device, compute_type=compute_type)
-    segments, info = model.transcribe(str(audio_path), word_timestamps=True)
+
+    try:
+        audio_data = load_audio_numpy(audio_path, sr=16000)
+        segments, info = model.transcribe(audio_data, word_timestamps=True)
+    except Exception as e:
+        logger.warning(f"FFmpeg numpy audio decode failed ({e}), attempting direct path: {e}")
+        segments, info = model.transcribe(str(audio_path), word_timestamps=True)
 
     words: list[TranscriptWord] = []
     full_text_parts = []

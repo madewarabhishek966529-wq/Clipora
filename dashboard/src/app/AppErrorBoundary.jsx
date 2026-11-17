@@ -1,37 +1,41 @@
-import React from 'react';
 
-export class AppErrorBoundary extends React.Component {
+import { Component } from 'react';
+import { Btn, Icon } from '../components/primitives';
+import { clearPersistedSession } from '../hooks/useSessionPersistence';
+
+export class AppErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { error: null };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    return { error };
   }
 
-  componentDidCatch(error, errorInfo) {
-    console.error("UI Uncaught Error:", error, errorInfo);
+  componentDidCatch(error, info) {
+    console.error('ClippyMe frontend crashed', error, info);
   }
 
   render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-white text-center">
-          <div className="max-w-md bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl">
-            <h2 className="text-xl font-bold text-rose-400 mb-2">Interface Render Error</h2>
-            <p className="text-sm text-slate-400 mb-6">{this.state.error?.message || "An unexpected error occurred."}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-semibold transition-all cursor-pointer"
-            >
-              Reload Dashboard
-            </button>
+    if (!this.state.error) return this.props.children;
+    return (
+      <main className="fatal-shell" role="alert">
+        <div className="fatal-card">
+          <span className="fatal-icon"><Icon n="triangle-alert" /></span>
+          <p className="eyebrow">Frontend recovery</p>
+          <h1>ClippyMe hit an unexpected UI error.</h1>
+          <p>Your rendered files and backend jobs are untouched. Reload the interface, or clear only the saved browser session if the same screen keeps crashing.</p>
+          <div className="fatal-actions">
+            <Btn variant="grad" icon="refresh-cw" onClick={() => window.location.reload()}>Reload interface</Btn>
+            <Btn variant="secondary" icon="trash-2" onClick={() => { clearPersistedSession(); window.location.reload(); }}>Clear saved session</Btn>
           </div>
+          <details>
+            <summary>Technical details</summary>
+            <pre>{String(this.state.error?.message || this.state.error)}</pre>
+          </details>
         </div>
-      );
-    }
-
-    return this.props.children;
+      </main>
+    );
   }
 }

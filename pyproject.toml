@@ -1,53 +1,54 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "clipora"
-version = "0.1.0"
-description = "Autonomous AI video clipping, reframing, and publishing engine"
-readme = "README.md"
-requires-python = ">=3.10"
-dependencies = [
-    "fastapi>=0.110.0",
-    "uvicorn[standard]>=0.28.0",
-    "pydantic>=2.6.0",
-    "pydantic-settings>=2.2.0",
-    "slowapi>=0.1.9",
-    "google-genai>=0.1.1",
-    "google-generativeai>=0.8.0",
-    "httpx>=0.27.0",
-    "pillow>=10.2.0",
-    "numpy>=1.26.0",
-    "psutil>=5.9.0",
-    "yt-dlp>=2024.3.10",
-    "json-repair>=0.25.0",
-    "python-dotenv>=1.0.0",
-    "python-multipart>=0.0.9",
-]
-
-[project.optional-dependencies]
-heavy = [
-    "opencv-python-headless>=4.9.0",
-    "torch>=2.2.0",
-    "scenedetect[opencv]>=0.6.2",
-    "ultralytics>=8.1.0",
-    "mediapipe>=0.10.11",
-    "faster-whisper>=1.0.0",
-    "curl-cffi>=0.6.2",
-]
-test = [
-    "pytest>=8.1.0",
-    "pytest-asyncio>=0.23.0",
-]
+name = "clippyme"
+version = "0.0.0"
+requires-python = ">=3.11"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# Light runtime subset needed by the host (non-integration) test suite.
+# The package's full runtime (requirements.txt) pulls the heavy CV/ML stack
+# (torch / mediapipe / opencv / ultralytics / scenedetect / faster-whisper),
+# which only the `integration`-marked Docker tests need. `pip install -e .`
+# alone installs NO runtime deps, so CI must install this group to collect the
+# host suite. Versions mirror requirements.txt; numpy/pydantic mirror
+# requirements.lock (normally transitive via torch/opencv — explicit here
+# because the heavy stack is intentionally absent on the host runner).
+[project.optional-dependencies]
+host-tests = [
+    "numpy==2.4.6",
+    "pydantic==2.13.4",
+    "fastapi==0.135.3",
+    "starlette>=1.0.1",  # CVE-2026-48710 (BadHost auth bypass) fixed in 1.0.1
+    "uvicorn==0.42.0",
+    "click>=8.3.3,<9",  # PYSEC-2026-2132 (click.edit command injection)
+    "python-multipart==0.0.31",
+    "yt-dlp>=2026.6.9,<2027",  # CVE-2026-50023 / CVE-2026-50574 fixed in 2026.6.9
+    "google-genai>=1.70.0,<2.0.0",
+    "python-dotenv==1.2.2",
+    "Pillow>=12.3.0,<13",
+    "requests>=2.32,<3",
+    "json-repair>=0.30",
+    "psutil==7.0.0",
+    "tqdm==4.67.3",
+    "tzdata>=2026.1; sys_platform == 'win32'",  # zoneinfo data; Windows has no system tz database
+]
+
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["tests"]
-pythonpath = ["src"]
+python_files = ["test_*.py"]
+# Heavy pipeline tests (cv2/mediapipe/yt-dlp runtime) live behind the Docker
+# backend image; the pure-logic suites (api, domain, integrations, parser)
+# run on the host with just `pip install -e .` + pytest.
+#
+# Tests that import clippyme.pipeline.main (pulls cv2/scenedetect/mediapipe)
+# or otherwise need the heavy runtime are marked `integration`. Run the fast
+# host suite with `pytest -m "not integration"`; run everything in Docker.
 markers = [
-    "integration: marks tests requiring native CV/ML frameworks or external services (deselect with '-m \"not integration\"')",
+    "integration: requires the heavy CV/ML runtime (cv2, scenedetect, mediapipe); run in Docker",
+    "live: real external provider calls, always opt-in and credential-gated",
 ]

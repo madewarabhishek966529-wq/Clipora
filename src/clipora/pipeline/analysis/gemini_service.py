@@ -12,33 +12,49 @@ from clipora.pipeline.analysis.gemini_parser import parse_viral_clips_response
 
 logger = logging.getLogger("clipora.gemini")
 
-def call_gemini_api(prompt: str, api_key: str, model_name: str = "gemini-2.5-flash") -> str:
-    """Invoke Gemini API via google-genai or google-generativeai SDK."""
-    # Attempt using new google.genai Client
-    try:
-        from google import genai
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=model_name,
-            contents=prompt,
-        )
-        if response.text:
-            return response.text
-    except (ImportError, Exception) as e1:
-        logger.debug(f"google.genai client attempt failed ({e1}), trying google.generativeai...")
+CANDIDATE_MODELS = [
+    "gemini-flash-latest",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3.8-flash",
+]
 
-    # Fallback to google.generativeai
-    try:
-        import google.generativeai as legacy_genai
-        legacy_genai.configure(api_key=api_key)
-        model = legacy_genai.GenerativeModel(model_name)
-        response = model.generate_content(prompt)
-        if response.text:
-            return response.text
-    except Exception as e2:
-        raise ViralityAnalysisError(f"Gemini API generation failed: {e2}") from e2
+def call_gemini_api(prompt: str, api_key: str, model_name: Optional[str] = None) -> str:
+    """Invoke Gemini API via google-genai or google-generativeai SDK with candidate fallback."""
+    models_to_try = [model_name] if model_name else []
+    for m in CANDIDATE_MODELS:
+        if m not in models_to_try:
+            models_to_try.append(m)
 
-    raise ViralityAnalysisError("Empty response received from Gemini API.")
+    last_exc = None
+    for target_model in models_to_try:
+        # 1. Attempt using modern google.genai Client
+        try:
+            from google import genai
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model=target_model,
+                contents=prompt,
+            )
+            if response.text:
+                return response.text
+        except Exception as e1:
+            last_exc = e1
+            logger.debug(f"google.genai with {target_model} failed ({e1})")
+
+        # 2. Fallback to google.generativeai
+        try:
+            import google.generativeai as legacy_genai
+            legacy_genai.configure(api_key=api_key)
+            model = legacy_genai.GenerativeModel(target_model)
+            response = model.generate_content(prompt)
+            if response.text:
+                return response.text
+        except Exception as e2:
+            last_exc = e2
+            logger.debug(f"google.generativeai with {target_model} failed ({e2})")
+
+    raise ViralityAnalysisError(f"All Gemini models failed. Last error: {last_exc}")
 
 def analyze_video_virality(
     transcript: NormalizedTranscript,
@@ -64,19 +80,15 @@ def analyze_video_virality(
     )
 
     try:
-        raw_output = call_gemini_api(prompt, key, model_name="gemini-2.5-flash")
+        raw_output = call_gemini_api(prompt, key)
     except Exception as e:
-        logger.warning(f"Primary Gemini call failed ({e}), attempting gemini-1.5-flash fallback...")
-        try:
-            raw_output = call_gemini_api(prompt, key, model_name="gemini-1.5-flash")
-        except Exception as e2:
-            logger.error(f"Gemini fallback model also failed: {e2}. Falling back to TextTiling.")
-            from clipora.pipeline.analysis.texttiling_ops import fallback_topic_segmentation
-            return fallback_topic_segmentation(transcript)
+        logger.error(f"Gemini API calls failed: {e}. Falling back to TextTiling algorithmic segmentation.")
+        from clipora.pipeline.analysis.texttiling_ops import fallback_topic_segmentation
+        return fallback_topic_segmentation(transcript)
 
     def level4_llm_fixer(bad_text: str) -> str:
         fix_prompt = f"Convert this text into pure valid JSON matching {{'clips': [...]}} schema:\n\n{bad_text}"
-        return call_gemini_api(fix_prompt, key, model_name="gemini-2.5-flash")
+        return call_gemini_api(fix_prompt, key)
 
     clips = parse_viral_clips_response(
         raw_output,

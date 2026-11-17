@@ -1,0 +1,137 @@
+// CreateView — pins the opts-key mapping of the recipe drawers (SubConfig /
+// LogoConfig / grade row). These are the exact `set({...})` patches
+// App persists and later maps to backend keys, so the shared-controls
+// refactor must keep emitting them byte-identically.
+import { test, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { CreateView } from './create.jsx';
+import { listFonts } from '../../api/client';
+import { HOOK_STYLE_DEFAULT } from '../../lib/uiOptions';
+
+vi.mock('../../api/client', () => ({
+  listFonts: vi.fn(async () => ({ fonts: [] })),
+}));
+
+const BASE_OPTS = {
+  mode: 'single', source: 'url', url: 'https://youtu.be/x', file: null,
+  batch: '', batchFiles: [],
+  preset: null, clipsAuto: true, clips: 3, aspect: '9:16',
+  detect: false, model: '', reframeMode: 'auto', smartcut: false, zoom: false,
+  language: 'multi',
+  subtitles: true, subMode: 'karaoke',
+  hooks: false, logo: true, gradePreset: 'none',
+};
+
+function mount(optsOver = {}) {
+  const set = vi.fn();
+  render(<CreateView opts={{ ...BASE_OPTS, ...optsOver }} set={set}
+    onPickPreset={vi.fn()} onCreate={vi.fn()} presets={[]} defaultId={null}
+    onSetDefault={vi.fn()} onDelete={vi.fn()} onSaveCurrent={vi.fn()} />);
+  return set;
+}
+
+const openDrawer = (label) =>
+  fireEvent.click(screen.getByRole('button', { name: `Configure ${label}` }));
+
+beforeEach(() => vi.clearAllMocks());
+
+test('subtitle drawer karaoke: mode switch, size slider and colors patch sub* keys', () => {
+  const set = mount();
+  openDrawer('Subtitles');
+  fireEvent.click(screen.getByRole('button', { name: 'Classic' }));
+  expect(set).toHaveBeenLastCalledWith({ subMode: 'classic' });
+  fireEvent.change(screen.getByLabelText('Subtitle font size'), { target: { value: '42' } });
+  expect(set).toHaveBeenLastCalledWith({ subFontSize: 42 });
+  fireEvent.change(screen.getByLabelText('Subtitle text color'), { target: { value: '#ff0000' } });
+  expect(set).toHaveBeenLastCalledWith({ subColor: '#ff0000' });
+  fireEvent.change(screen.getByLabelText('Subtitle stroke color'), { target: { value: '#00ff00' } });
+  expect(set).toHaveBeenLastCalledWith({ subStroke: '#00ff00' });
+});
+
+test('subtitle drawer classic: font/swatch/outline/bg patch their sub* keys', () => {
+  const set = mount({ subMode: 'classic' });
+  openDrawer('Subtitles');
+  fireEvent.click(screen.getByLabelText('Font color #FDE700'));
+  expect(set).toHaveBeenLastCalledWith({ subColor: '#FDE700' });
+  fireEvent.change(screen.getByLabelText('Subtitle outline width'), { target: { value: '5' } });
+  expect(set).toHaveBeenLastCalledWith({ subOutlineW: 5 });
+  // Switches on screen: recipe rows (subtitles/smartcut/zoom/detect/hooks/logo)
+  // + the drawer's Background box, which sits inside the drawer element.
+  const drawer = document.querySelector('.cfg-drawer');
+  fireEvent.click(drawer.querySelector('[role="switch"]'));
+  expect(set).toHaveBeenLastCalledWith({ subBg: true });
+});
+
+test('subtitle drawer shared rows: position/alignment/nudge patch their sub* keys', () => {
+  const set = mount();
+  openDrawer('Subtitles');
+  fireEvent.click(screen.getByRole('button', { name: 'Top' }));
+  expect(set).toHaveBeenLastCalledWith({ subPosition: 'top' });
+  fireEvent.click(screen.getByRole('button', { name: 'Left' }));
+  expect(set).toHaveBeenLastCalledWith({ subAlign: 'left' });
+  fireEvent.change(screen.getByLabelText('Subtitle vertical position'), { target: { value: '-12' } });
+  expect(set).toHaveBeenLastCalledWith({ subOffsetY: -12 });
+});
+
+test('logo drawer: position cell and size segment patch logoPos/logoSize', () => {
+  const set = mount();
+  openDrawer('Brand logo');
+  fireEvent.click(screen.getByRole('button', { name: 'Bot C' }));
+  expect(set).toHaveBeenLastCalledWith({ logoPos: 'bottom-center' });
+  fireEvent.click(screen.getByRole('button', { name: 'L' }));
+  expect(set).toHaveBeenLastCalledWith({ logoSize: 'L' });
+});
+
+test('grade row: preset segments (with the extra Off entry) patch gradePreset', () => {
+  const set = mount();
+  // Scope to the grade row — the Reframe segmented also has an "Off" button.
+  const row = within(screen.getByText('Colour grade').closest('.opt'));
+  fireEvent.click(row.getByRole('button', { name: 'Warm' }));
+  expect(set).toHaveBeenLastCalledWith({ gradePreset: 'warm_cinematic' });
+  fireEvent.click(row.getByRole('button', { name: 'Off' }));
+  expect(set).toHaveBeenLastCalledWith({ gradePreset: 'none' });
+});
+
+test('hook drawer: a stale preset font previews the backend Noto Serif fallback, opts untouched', async () => {
+  // Goal 30: an uploaded font deleted after a preset saved it is not in the
+  // live font list; hook_overlay renders it with NotoSerif-Bold.
+  vi.mocked(listFonts).mockImplementationOnce(async () => ({ fonts: ['Anton-Regular', 'NotoSerif-Bold'] }));
+  const set = mount({ hooks: true, hookPos: 'top', hookSize: 'M',
+    hookStyle: { ...HOOK_STYLE_DEFAULT, font: 'MyDeleted-Font' } });
+  openDrawer('Text hooks');
+  const hookText = () => screen.getByText('Your hook text').style;
+  await waitFor(() => expect(hookText().fontFamily).toBe('"ClippyMe Preview NotoSerif-Bold", sans-serif'));
+  expect(hookText().fontWeight).toBe('700');
+  expect(set).not.toHaveBeenCalled();
+});
+
+test('hook drawer: Verdana is not offered and a saved Verdana previews Noto Serif, opts untouched', async () => {
+  // Goal 31: hook_overlay has no Verdana file and renders it with NotoSerif-Bold.
+  vi.mocked(listFonts).mockImplementationOnce(async () => ({ fonts: ['Anton-Regular', 'NotoSerif-Bold', 'MyBrand-Bold'] }));
+  const set = mount({ hooks: true, hookPos: 'top', hookSize: 'M',
+    hookStyle: { ...HOOK_STYLE_DEFAULT, font: 'Verdana' } });
+  openDrawer('Text hooks');
+  const hookText = () => screen.getByText('Your hook text').style;
+  await waitFor(() => expect(screen.getByRole('option', { name: 'MyBrand Bold' })).toBeInTheDocument());
+  expect(screen.queryByRole('option', { name: 'Verdana' })).toBeNull();
+  expect(hookText().fontFamily).toBe('"ClippyMe Preview NotoSerif-Bold", sans-serif');
+  expect(hookText().fontWeight).toBe('700');
+  expect(set).not.toHaveBeenCalled();
+});
+
+test('hook drawer: NotoSerif-Bold is not offered next to Default (serif); a saved one keeps its value', async () => {
+  // Goal 32: '' already renders fonts/NotoSerif-Bold.ttf, so the live-list
+  // entry is a duplicate choice. A saved explicit value is left as is.
+  vi.mocked(listFonts).mockImplementationOnce(async () => ({ fonts: ['Anton-Regular', 'Montserrat-ExtraBold', 'NotoSerif-Bold', 'MyBrand-Bold'] }));
+  const set = mount({ hooks: true, hookPos: 'top', hookSize: 'M',
+    hookStyle: { ...HOOK_STYLE_DEFAULT, font: 'NotoSerif-Bold' } });
+  openDrawer('Text hooks');
+  const hookText = () => screen.getByText('Your hook text').style;
+  await waitFor(() => expect(screen.getByRole('option', { name: 'MyBrand Bold' })).toBeInTheDocument());
+  expect(screen.queryByRole('option', { name: 'NotoSerif Bold' })).toBeNull();
+  expect(screen.getByRole('option', { name: 'Montserrat ExtraBold' })).toBeInTheDocument();
+  expect(screen.getByRole('option', { name: 'Default (serif)' })).toBeInTheDocument();
+  expect(hookText().fontFamily).toBe('"ClippyMe Preview NotoSerif-Bold", sans-serif');
+  expect(hookText().fontWeight).toBe('700');
+  expect(set).not.toHaveBeenCalled();
+});

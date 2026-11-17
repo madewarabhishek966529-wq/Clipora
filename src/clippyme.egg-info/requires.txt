@@ -1,0 +1,20 @@
+
+[host-tests]
+numpy==2.4.6
+pydantic==2.13.4
+fastapi==0.135.3
+starlette>=1.0.1
+uvicorn==0.42.0
+click<9,>=8.3.3
+python-multipart==0.0.31
+yt-dlp<2027,>=2026.6.9
+google-genai<2.0.0,>=1.70.0
+python-dotenv==1.2.2
+Pillow<13,>=12.3.0
+requests<3,>=2.32
+json-repair>=0.30
+psutil==7.0.0
+tqdm==4.67.3
+
+[host-tests:sys_platform == "win32"]
+tzdata>=2026.1

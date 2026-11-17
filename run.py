@@ -10,11 +10,11 @@ if str(_src_dir) not in sys.path:
     sys.path.insert(0, str(_src_dir))
 
 if __name__ == "__main__":
-    print("[Clipora] Starting Clipora API Gateway...")
+    print("[Clipora] Starting Clipora / ClippyMe API Gateway...")
     print(f"[Clipora] Reload directory scoped to: {_src_dir}")
     print("[Clipora] Media and runtime folders (output, data, uploads) are excluded from hot-reload.")
     uvicorn.run(
-        "clipora.api.app:app",
+        "clippyme.api.app:app",
         host="0.0.0.0",
         port=8000,
         reload=True,
